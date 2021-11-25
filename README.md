@@ -31,5 +31,5 @@ install.packages(shinydashboard)
 ## Run the App
  Use this code to run the app in RStudio.
  ```{r}
- shiny::runGitHub()
+ shiny::runGitHub('Project3','kafrazi2', ref="main")
  ```

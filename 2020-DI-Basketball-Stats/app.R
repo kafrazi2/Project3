@@ -5,9 +5,14 @@ library(tidyverse)
 library(caret)
 library(readr)
 library(ggplot2)
+library(DT)
 
 # Read in data set
-cbb20 <- read_csv(file = "cbb20.csv") 
+cbb <- read_csv(file = "cbb.csv") 
+#create binary variable
+cbbNew <- cbb %>% mutate(IN_TOURN =   if_else(is.na(cbb$POSTSEASON), 0, 1))
+cbbNew
+
 
 
 # Define UI for application that draws a histogram
@@ -17,7 +22,7 @@ ui <- dashboardPage(
     # Define tabs
     dashboardSidebar(sidebarMenu(
         menuItem("About", tabName = "about", icon = icon("archive")),
-        menuItem("Data Exploration", tabName = "data exploration", icon = icon("laptop")),
+        menuItem("Data Exploration", tabName = "exploration", icon = icon("laptop")),
         menuItem("Modeling", tabName = "modeling", icon = icon("laptop")),
         menuItem("Data", tabName = "data", icon = icon("laptop"))
     )),
@@ -61,6 +66,57 @@ ui <- dashboardPage(
                                )
                         )
                     )
+            ),
+            # Second tab item
+            tabItem(tabName = "exploration",
+                    fluidRow(
+                        column(6,
+                               h1("Data Exploration"))
+                    )
+                    ),
+            # Third tab item
+            tabItem(tabName = "modeling",
+                    fluidRow(
+                        column(6,
+                               h1("Modeling"))
+                    )
+            ),
+            # Fourth tab item
+            tabItem(tabName = "data",
+                    fluidRow(
+                        column(6,
+                               h1("Data")),
+                        box(background="navy",width=5,
+                            h3(strong("Variables:")),
+                            h4("-TEAM (the Division I college basketball school)"),
+                            h4("-CONF (the athletic conference the school participates in)"),
+                            h4("-G (number of games played)"),
+                            h4("-W (number of games won)"),
+                            h4("-ADJOE (adjusted offensive efficiency)"),
+                            h4("-ADJDE (adjusted defensive efficiency)"),
+                            h4("-BARTHAG (power rating)"),
+                            h4("-EFG_O (effective field goal shot)"),
+                            h4("-EFG_D (effective field goal percentage allowed)"),
+                            h4("-TOR (turnover rate)"),
+                            h4("-TORD (steal rate)"),
+                            h4("-ORB (offensive rebound rate)"),
+                            h4("-DRB (offensive rebound rate allowed)"),
+                            h4("-FTR (free throw ate)"),
+                            h4("-FTRD (free throw rate allowed)"),
+                            h4("-2P_O (2 point shooting percentage)"),
+                            h4("-2P_D (2 point shooting percentage allowed)"),
+                            h4("-3P_O (3 point shooting percentage)"),
+                            h4("-3P_D (3 point shooting percentage allowed)"),
+                            h4("-ADJ_T (wins above bubble)"),
+                            h4("-POSTSEASON (round where the team was eliminated or their season ended)"),
+                            h4("-SEED (seed in the NCAA March Madness tournament)"),
+                            h4("-YEAR (season)"),
+                            h4("-IN_TOUR (value = 1 if the team made the tournament and value = 0 if they did not)")
+                        ),
+                        dataTableOutput("mytable"),
+                        # Button to download
+                        downloadButton("downloadData", "Download")
+                    )
             )
     )
     )
@@ -68,7 +124,22 @@ ui <- dashboardPage(
 
 
 
-server <- function(input, output) { }
+server <- function(input, output) {
+    #create data table
+    output$mytable = renderDataTable({
+        cbbNew
+    })
+    #allow users to download the data
+    output$downloadData <- downloadHandler(
+        filename = function() {
+            paste(input$dataset, ".csv", sep = "")
+        },
+        content = function(file) {
+            write.csv(datasetInput(), file, row.names = FALSE)
+        }
+    )
+    
+}
 
 shinyApp(ui, server)
 

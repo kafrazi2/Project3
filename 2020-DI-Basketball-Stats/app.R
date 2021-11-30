@@ -22,14 +22,17 @@ ui <- dashboardPage(
     # Define tabs
     dashboardSidebar(sidebarMenu(
         menuItem("About", tabName = "about", icon = icon("archive")),
-        menuItem("Data Exploration", tabName = "exploration", icon = icon("laptop")),
-        menuItem("Modeling", tabName = "modeling", icon = icon("laptop")),
-        menuItem("Data", tabName = "data", icon = icon("laptop"))
+        menuItem("Data Exploration", tabName = "exploration", icon = icon("bar-chart-o")),
+        menuItem("Modeling", tabName = "modeling", icon = icon("laptop"), startExpanded = TRUE,
+                menuSubItem("Modeling Info", tabName = "info"),
+                menuSubItem("Model Fitting", tabName = "fit"),
+                menuSubItem("Prediction", tabName = "predict")),
+        menuItem("Data", tabName = "data", icon = icon("th"))
     )),
     #Define the body of the app
     dashboardBody(
         tabItems(
-            # First tab content
+            # about tab content
             tabItem(tabName = "about",
                     fluidRow(
                         img(src = "ncaabasketball4.jpg", height = 300, width = 1000),
@@ -67,21 +70,52 @@ ui <- dashboardPage(
                         )
                     )
             ),
-            # Second tab item
+            # data exploration tab content
             tabItem(tabName = "exploration",
                     fluidRow(
                         column(6,
-                               h1("Data Exploration"))
-                    )
+                               h1("Data Exploration")),
+                        column(6,
+                               h3("Select statistic to summarize"),
+                               #select input for summary
+                               selectizeInput("stat", "Statistic", 
+                                              choices = list("ADJOE", "ADJDE", "BARTHAG", "EFG_O", "EFG_D", "TOR", "TORD", "ORB", "DRB", "FTR", "FTRD", "2P_O", "2P_D", "3P_O", "3P_D", "ADJ_T", "WAB")),
+                               dataTableOutput("DT")),
+                        column(12,
+                               h3("Bar Plot of Conference vs. Number of Wins"),
+                               plotOutput("barPlot"),
+                               checkboxInput("color", h4("Add color"))),
+                        column(6,
+                               sliderInput("bins", "Number of bins:", min = 1, max = 20, value = 10),
+                               actionButton("reset", "Reset"),
+                               plotOutput("distPlot"))
+                        )
+                               
+                               
+                        
                     ),
-            # Third tab item
-            tabItem(tabName = "modeling",
+            # model info tab content
+            tabItem(tabName = "info",
                     fluidRow(
                         column(6,
-                               h1("Modeling"))
+                               h1("Modeling info"))
                     )
             ),
-            # Fourth tab item
+            # model fit tab content
+            tabItem(tabName = "fit",
+                    fluidRow(
+                        column(6,
+                               h1("Model Fitting"))
+                    )
+            ),
+            # prediction tab content
+            tabItem(tabName = "predict",
+                    fluidRow(
+                        column(6,
+                               h1("Prediction"))
+                    )
+            ),
+            # data tab content
             tabItem(tabName = "data",
                     fluidRow(
                         column(6,
@@ -101,7 +135,7 @@ ui <- dashboardPage(
                             h4("-TORD (steal rate)"),
                             h4("-ORB (offensive rebound rate)"),
                             h4("-DRB (offensive rebound rate allowed)"),
-                            h4("-FTR (free throw ate)"),
+                            h4("-FTR (free throw rate)"),
                             h4("-FTRD (free throw rate allowed)"),
                             h4("-2P_O (2 point shooting percentage)"),
                             h4("-2P_D (2 point shooting percentage allowed)"),
@@ -119,12 +153,49 @@ ui <- dashboardPage(
                     )
             )
     )
-    )
-)
+    ))
 
 
 
-server <- function(input, output) {
+
+server <- shinyServer(function(input, output, session) {
+    #create numeric summary
+    output$DT <- renderDT({
+        #grab variables
+        stat <- input$stat
+        cbbNewSub <- cbbNew[, c("TEAM", "CONF","W", "SEED", "IN_TOURN", stat),
+                                        drop = FALSE]
+        #call the table
+        cbbNewSub
+    })
+    
+    #create bar plot
+    output$barPlot <- renderPlot({
+        #create plot
+        g <- ggplot(cbbNew, aes(x = CONF, y = W)) 
+        if(input$color){
+            g + geom_bar(stat = 'identity', aes(fill = CONF)) + guides(x = guide_axis(angle = 45)) + labs(x = "Conference", y = "Number of Wins")
+        } else {
+            g + geom_bar(stat = 'identity') + guides(x = guide_axis(angle = 45)) + labs(x = "Conference", y = "Number of Wins")
+        }
+    })
+    
+    #create histogram
+    output$distPlot <- renderPlot({
+        #create plot
+        x    <- cbbNew$W
+        bins <- seq(min(x), max(x), length.out = input$bins + 1)
+        
+        hist(x, breaks = bins, col = "#75AADB", border = "white",
+             xlab = "Number of Wins",
+             main = "Histogram of Wins")
+        #create reset button
+        observeEvent(input$reset, {
+            updateSliderInput("bins", value = 10)
+        })
+    })
+
+        
     #create data table
     output$mytable = renderDataTable({
         cbbNew
@@ -139,7 +210,7 @@ server <- function(input, output) {
         }
     )
     
-}
+})
 
 shinyApp(ui, server)
 

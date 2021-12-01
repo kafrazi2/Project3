@@ -9,16 +9,11 @@ library(DT)
 
 # Read in data set
 cbb <- read_csv(file = "cbb.csv") 
-#create binary variable
-cbbNew <- cbb %>% mutate(IN_TOURN =   if_else(is.na(cbb$POSTSEASON), 0, 1))
-cbbNew
 
-
-
-# Define UI for application that draws a histogram
+# Define UI for application 
 ui <- dashboardPage(
     # Add title
-    dashboardHeader(title = "2020 NCAA Division I Basketball Stats", titleWidth = 1000),
+    dashboardHeader(title = "NCAA Division I Men's Basketball Stats", titleWidth = 1000),
     # Define tabs
     dashboardSidebar(sidebarMenu(
         menuItem("About", tabName = "about", icon = icon("archive")),
@@ -29,39 +24,38 @@ ui <- dashboardPage(
                 menuSubItem("Prediction", tabName = "predict")),
         menuItem("Data", tabName = "data", icon = icon("th"))
     )),
-    #Define the body of the app
+    # Define the body of the app
     dashboardBody(
         tabItems(
-            # about tab content
+            # About tab content
             tabItem(tabName = "about",
                     fluidRow(
                         img(src = "ncaabasketball4.jpg", height = 300, width = 1000),
-                        #add in latex functionality if needed
+                        # Add in latex functionality if needed
                         withMathJax(),
-                        #two columns for each of the two items
                         column(6,
-                               #Description of App
+                               # Description of App
                                h1("App Purpose", style="color:#005eb8"),
-                               #box to contain description
+                               # Box to contain description
                                box(background="navy",width=12,
-                                   h4("The purpose of this app is to describe, summarize, and predict data from the NCAA DI basketball 2020 season. This app allows users to look at and customize various plots and tables of this data to see relationships between teams, conferences, wins/loses, and a team's statistics. This app also helps to predict a team's final ranking based off several statistical predictors.")
+                                   h4("The purpose of this app is to describe, summarize, and predict data from NCAA DI men's basketball stats for seasons 2013-2021. This app allows users to look at and customize various plots and tables of this data to see relationships between teams, conferences, wins, and a team's statistics. In this app, you will be able to predict a team's number of wins based off several statistical predictors.")
                                )
                         ),
                         
                         column(6,
-                               #Data description
+                               # Data description
                                h1("Data Description", style="color:#005eb8"),
-                               #box to contain description
+                               # Box to contain description
                                box(background="navy",width=12,
                                    h4("This data was collected from a college basketball data set on kaggle found", a("here", href = "https://www.kaggle.com/andrewsundberg/college-basketball-dataset"),"."),
                                    h4(a("Kaggle", href = "https://www.kaggle.com/"), "is a huge repository full of community published data."),
-                                   h4("The data used in this app is information about NCAA Division I men's basketball. It covers years from 2013-2021. It lists team names, conferences, win/loses, and overall team statistics throughout the season.")
+                                   h4("The data used in this app is information about NCAA Division I men's basketball. It covers years from 2013-2021. It lists team names, conferences, win, and overall team statistics throughout the season.")
                                )
                         ),
                         column(6,
-                               #Purpose of each tab
+                               # Purpose of each tab
                                h1("Purpose of Each Page", style="color:#005eb8"),
-                               #box to contain description
+                               # Box to contain description
                                box(background="navy",width=12,
                                    h4(strong("-Data Exploration"), ": this page allows users to customize numerical and graphical summeries involving the data."),
                                    h4(strong("-Modeling"), ": this page allows customization of three different types of supervised learning models. This page also includes three extra tabs: Modeling Info (describes the types of models being used), Model Fitting (enables user customizations for the different types of models), and Prediction (allows users to use one of the models to predict the response)."),
@@ -70,56 +64,68 @@ ui <- dashboardPage(
                         )
                     )
             ),
-            # data exploration tab content
+            # Data exploration tab content
             tabItem(tabName = "exploration",
                     fluidRow(
                         column(6,
                                h1("Data Exploration")),
                         column(6,
-                               h3("Select statistic to summarize"),
-                               #select input for summary
+                               h3("Summary table"),
+                               h5("Select statistic to summarize:"),
+                               # Select input for summary
                                selectizeInput("stat", "Statistic", 
                                               choices = list("ADJOE", "ADJDE", "BARTHAG", "EFG_O", "EFG_D", "TOR", "TORD", "ORB", "DRB", "FTR", "FTRD", "2P_O", "2P_D", "3P_O", "3P_D", "ADJ_T", "WAB")),
-                               dataTableOutput("DT")),
-                        column(12,
-                               h3("Bar Plot of Conference vs. Number of Wins"),
-                               plotOutput("barPlot"),
-                               checkboxInput("color", h4("Add color"))),
+                              # Output data table
+                                dataTableOutput("DT")),
                         column(6,
+                               h3("Bar Plot of Conference vs. Number of Wins"),
+                               # Output bar plot
+                               plotOutput("barPlot"),
+                               # Create check box
+                               checkboxInput("color", h4("Add color")),
+                               #only show this panel if color is checked
+                               conditionalPanel(condition = "input.color",
+                                                checkboxInput("horizontal", h5("Horizontal bar plot")))),
+                        column(6,
+                               # create slider input
                                sliderInput("bins", "Number of bins:", min = 1, max = 20, value = 10),
+                               # Create action button
                                actionButton("reset", "Reset"),
+                               # Output histogram
+                               h3("Histogram of Number of Wins"),
                                plotOutput("distPlot"))
                         )
                                
                                
                         
                     ),
-            # model info tab content
+            # Model info tab content
             tabItem(tabName = "info",
                     fluidRow(
                         column(6,
                                h1("Modeling info"))
                     )
             ),
-            # model fit tab content
+            # Model fit tab content
             tabItem(tabName = "fit",
                     fluidRow(
                         column(6,
                                h1("Model Fitting"))
                     )
             ),
-            # prediction tab content
+            # Prediction tab content
             tabItem(tabName = "predict",
                     fluidRow(
                         column(6,
                                h1("Prediction"))
                     )
             ),
-            # data tab content
+            # Data tab content
             tabItem(tabName = "data",
                     fluidRow(
                         column(6,
                                h1("Data")),
+                        # Make box for variable names and descriptions
                         box(background="navy",width=5,
                             h3(strong("Variables:")),
                             h4("-TEAM (the Division I college basketball school)"),
@@ -147,6 +153,7 @@ ui <- dashboardPage(
                             h4("-YEAR (season)"),
                             h4("-IN_TOUR (value = 1 if the team made the tournament and value = 0 if they did not)")
                         ),
+                        # Output data table
                         dataTableOutput("mytable"),
                         # Button to download
                         downloadButton("downloadData", "Download")
@@ -159,48 +166,52 @@ ui <- dashboardPage(
 
 
 server <- shinyServer(function(input, output, session) {
-    #create numeric summary
+    
+    # Create numeric summary
     output$DT <- renderDT({
-        #grab variables
+        # Grab variables
         stat <- input$stat
-        cbbNewSub <- cbbNew[, c("TEAM", "CONF","W", "SEED", "IN_TOURN", stat),
+        cbbSub <- cbb[, c("TEAM", "CONF","W", "SEED", stat),
                                         drop = FALSE]
-        #call the table
-        cbbNewSub
+        # Call the table
+        cbbSub
     })
     
-    #create bar plot
+    # Create bar plot
     output$barPlot <- renderPlot({
-        #create plot
-        g <- ggplot(cbbNew, aes(x = CONF, y = W)) 
-        if(input$color){
+        # Use conditional logic to create plot
+        g <- ggplot(cbb, aes(x = CONF, y = W)) 
+        if(input$horizontal){
+            g + geom_bar(stat = 'identity', aes(fill = CONF)) + labs(x = "Conference", y = "Number of Wins") + coord_flip()
+        }
+        else if(input$color){
             g + geom_bar(stat = 'identity', aes(fill = CONF)) + guides(x = guide_axis(angle = 45)) + labs(x = "Conference", y = "Number of Wins")
         } else {
             g + geom_bar(stat = 'identity') + guides(x = guide_axis(angle = 45)) + labs(x = "Conference", y = "Number of Wins")
         }
     })
     
-    #create histogram
+    # Create histogram
     output$distPlot <- renderPlot({
-        #create plot
-        x    <- cbbNew$W
+        # Add number of bins
+        x    <- cbb$W
         bins <- seq(min(x), max(x), length.out = input$bins + 1)
         
-        hist(x, breaks = bins, col = "#75AADB", border = "white",
+        hist(x, breaks = bins, col = "#005eb8", border = "white",
              xlab = "Number of Wins",
              main = "Histogram of Wins")
-        #create reset button
-        observeEvent(input$reset, {
-            updateSliderInput("bins", value = 10)
-        })
     })
-
+    
+    # Create reset button with dynamic UI
+    observeEvent(input$reset, {
+        updateSliderInput(session = getDefaultReactiveDomain(), "bins", value = 10)
+    })
         
-    #create data table
+    # Create data table
     output$mytable = renderDataTable({
-        cbbNew
+        cbb
     })
-    #allow users to download the data
+    # Allow users to download the data
     output$downloadData <- downloadHandler(
         filename = function() {
             paste(input$dataset, ".csv", sep = "")

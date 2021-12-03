@@ -31,8 +31,6 @@ ui <- dashboardPage(
             tabItem(tabName = "about",
                     fluidRow(
                         img(src = "ncaabasketball4.jpg", height = 300, width = 1000),
-                        # Add in latex functionality if needed
-                        withMathJax(),
                         column(6,
                                # Description of App
                                h1("App Purpose", style="color:#005eb8"),
@@ -67,8 +65,7 @@ ui <- dashboardPage(
             # Data exploration tab content
             tabItem(tabName = "exploration",
                     fluidRow(
-                        column(6,
-                               h1("Data Exploration")),
+                               h1("Data Exploration"),
                         column(6,
                                h3("Summary table"),
                                h5("Select statistic to summarize:"),
@@ -102,29 +99,96 @@ ui <- dashboardPage(
             # Model info tab content
             tabItem(tabName = "info",
                     fluidRow(
+                               h1("Modeling info"),
+                               br(),
                         column(6,
-                               h1("Modeling info"))
-                    )
-            ),
+                            box(background="navy",width=12,
+                               h3(strong("Multiple Linear Regression Model")),
+                               h4("Multiple linear regression is a modeling technique that uses multiple explanatory variables to predict a response variable."),
+                               h4("Benefits of this type of modeling are: the ability to use multiple predictors or higher order terms and it easily identifies outliers in the data."),
+                               h4("A drawback of this type of modeling is: this model could lead to a false causation conclusion."),
+                               br(),
+                               h4("Formula:"),
+                               withMathJax(),
+                               uiOutput('MLRFormula')
+                    )),
+                        column(6,
+                           box(background="navy",width=12,
+                               h3(strong("Regression Tree Model")),
+                               h4("Regression tree models split up predictor space into regions with different predictions for each region. They then predict a continuous response by using mean of observations as prediction."),
+                               h4("Benefits of this model: easy to visualize and helps make quick decision because of its interpretability."),
+                               h4("A drawback of this type of model: it involves extra time to train the model as compared to other methods."),
+                               br(),
+                               h4("Formula:"),
+                               h5("For every possible value of each predictor, find Residual Sum of Squares and try to minimize that."),
+                               withMathJax(),
+                               uiOutput('RegTreeFormula'),
+                               h5("We seek the value of j and s that minimize the equation."),
+                               withMathJax(),
+                               uiOutput('RegTreeFormula2')
+                           )),
+                        column(6,
+                           box(background="navy",width=12,
+                               h3(strong("Random Forest Model")),
+                               h4("Random forest models creates multiple trees from bootstrap samples then averages the results."),
+                               h4("Benefits of this model: it randomly selects a subset of predictors so a good predictor won't dominate the tree fits and it works well with categorical and continuous values."),
+                               h4("A drawback of this type of model: it is complex and creates a lot of trees making its computation time longer."),
+                               br(),
+                               h4("Formula:"),
+                               withMathJax(),
+                               h5("For randomly selected predictors in classification use:"),
+                               uiOutput('RFFormula'),
+                               h5("For randomly selected predictors in regression use:"),
+                               uiOutput('RFFormula2'),
+                               h5("Then find", em("m"), "through OOB error and if", em("m = p"), "you have bagging")
+                           ))
+                    )),
             # Model fit tab content
             tabItem(tabName = "fit",
                     fluidRow(
+                               h1("Model Fitting"),
                         column(6,
-                               h1("Model Fitting"))
-                    )
+                               h4("Create Training Set Size"),
+                               numericInput("ni","Enter a value between 0 and 1 for training set:", value = 0.8, min = 0, max = 1, step = 0.05)),
+                        column(6,
+                               h4("Variable Predictors"),
+                               selectizeInput("pred", "Select predictors:", multiple = TRUE,
+                                              choices = list("ADJOE", "ADJDE", "BARTHAG", "EFG_O", "EFG_D", "TOR", "TORD", "ORB", "DRB", "FTR", "FTRD", "2P_O", "2P_D", "3P_O", "3P_D", "ADJ_T", "WAB"))),
+                        column(6,
+                               h4("Regression Tree Cross Validation"),
+                               numericInput("cv1", "Select the number of cross validation folds:", value = 5, min = 1, max =10, step = 1),
+                               numericInput("repeat1", "Select the number of repetitions:", value = 3, min = 1, max =10, step = 1),
+                               br(),
+                               h4("Random Forset Cross Validation"),
+                               numericInput("cv2", "Select the number of cross validation folds:", value = 5, min = 1, max =10, step = 1),
+                               numericInput("repeat2", "Select the number of repetitions:", value = 3, min = 1, max =10, step = 1),
+                               actionButton("fit", "Fit Model")),
+                        column(6,
+                               h4("Multiple Linear Regression Summary Stats (Training Data):"),
+                               verbatimTextOutput("MLRTrain"),
+                               h4("Multiple Linear Regression Summary Stats (Test Data):"),
+                               verbatimTextOutput("MLRTest"),
+                               h4("Regression Tree Summary Stats (Training Data):"),
+                               verbatimTextOutput("RegTreeTrain"),
+                               h4("Regression Tree Summary Stats (Test Data):"),
+                               verbatimTextOutput("RegTreeTest"),
+                               h4("Random Forest Tree Summary Stats (Training Data):"),
+                               verbatimTextOutput("RFTrain"),
+                               h4("Random Forest Tree Summary Stats (Test Data):"),
+                               verbatimTextOutput("RFTest")) 
+                        )
+                    
             ),
             # Prediction tab content
             tabItem(tabName = "predict",
                     fluidRow(
-                        column(6,
-                               h1("Prediction"))
+                               h1("Prediction")
                     )
             ),
             # Data tab content
             tabItem(tabName = "data",
                     fluidRow(
-                        column(6,
-                               h1("Data")),
+                            h1("Data"),
                         # Make box for variable names and descriptions
                         box(background="navy",width=5,
                             h3(strong("Variables:")),
@@ -159,8 +223,7 @@ ui <- dashboardPage(
                         downloadButton("downloadData", "Download")
                     )
             )
-    )
-    ))
+    )))
 
 
 
@@ -206,7 +269,140 @@ server <- shinyServer(function(input, output, session) {
     observeEvent(input$reset, {
         updateSliderInput(session = getDefaultReactiveDomain(), "bins", value = 10)
     })
+    
+    # Create formula for MLR
+    output$MLRFormula <- renderUI({
+        withMathJax(helpText('$$\\Rightarrow Y = \\hat{\\beta}_0 + \\hat{\\beta}_1 x_1 + \\hat{\\beta}_2 x_2 + E$$'))
+    })
+    
+    # Create formula for regression tree
+    output$RegTreeFormula <- renderUI({
+        withMathJax(helpText('$$\\Rightarrow R_1(j, s) = \\{x|x_j < s\\}\\  R_2(j, s) = \\{x|x_j \\geq s\\}$$'))
+    })
+    
+    output$RegTreeFormula2 <- renderUI({
+        withMathJax(helpText('$$\\Rightarrow \\sum_{i:x_i\\in R_1(j,s)}(y_i-\\bar{y}_{R_1})^2+\\sum_{i:x_i\\in R_2(j,s)}(y_i-\\bar{y}_{R_2})^2$$'))
+    })
+    
+    # Create formula for random forest
+    output$RFFormula <- renderUI({
+        withMathJax(helpText('$$\\Rightarrow m = \\sqrt{p}$$'))
+    })
+    
+    output$RFFormula2 <- renderUI({
+        withMathJax(helpText('$$\\Rightarrow m = p/3$$'))
+    })
+    
+    # Create train and test data
+    trainData <- reactive({
+        cbbNA <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
+        cbbNew <- as.data.frame(cbbNA)
+        trainIndex <- createDataPartition(cbbNew$PPG, p = input$ni, list = FALSE)
+        trainData <- cbbNew[trainIndex,]
+    })
+    
+    testData <- reactive({
+        cbbNA <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
+        cbbNew <- as.data.frame(cbbNA)
+        trainIndex <- createDataPartition(cbbNew$PPG, p = input$ni, list = FALSE)
+        testData <- cbbNew[-trainIndex,]
+    })
+    
+    # Fit MLR model for train data
+    MLRTrain <- eventReactive(input$fit, {
+        mlrFit <- lm(W ~ input$pred, data = trainData)
+        mlrFit
+        summary(mlrFit)
+    })
+    
+    # Output MLR model
+    output$MLRTrain <- renderPrint({
+        MLRTrain()
+    })
+    
+    # Fit MLR model for test data
+    MLRTest <- eventReactive(input$fit, {
+        mlrFit <- lm(W ~ input$pred, data = trainData)
+        mlrFit
+        summary(mlrFit)
+    })
+    
+    # Output MLR model
+    output$MLRTest <- renderPrint({
+        MLRTest()
+    })
+    
+    
+    # Regression tree model for train data
+    RegTreeTrain <- eventReactive(input$fit, {
         
+        # Create tuning parameters
+        cp <- 0:0.1
+        df <- expand.grid(cp = cp)
+        
+        regFit <- train(W ~ input$pred, data = trainData, method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        regFit    
+    })
+    
+    # Output regression tree
+    output$RegTreeTrain <- renderPrint({
+        RegTreeTrain()
+    })
+    
+    #regression tree model for test data
+    RegTreeTest <- eventReactive(input$fit, {
+        
+        # Create tuning parameters
+        cp <- 0:0.1
+        df <- expand.grid(cp = cp)
+        
+        # Fit regression tree
+        regFit <- train(W ~ input$pred, data = trainData, method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        
+        # Compare to test data
+        predReg -> predict(regFit, newdata = testData)
+        postResample(testData$W, predReg)
+    })
+    
+    # Output regression tree
+    output$RegTreeTest <- renderPrint({
+        RegTreeTest()
+    })
+    
+    # Create random forest tree model for train data
+    RFTrain <- eventReactive(input$fit, {
+        
+        # Create tuning parameters
+        mtry <- 1:15
+        df <- expand.grid(mtry = mtry)
+        
+        rfFit <- train(W ~ input$pred, data = trainData, method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        rfFit
+    })
+    
+    # Output random forest model
+    output$RFTrain <- renderPrint({
+        RFTrain()
+    })
+    
+    # Create random forest tree model for test data
+    output$RFTest <- eventReactive(input$fit, {
+        
+        # Create tuning parameters
+        mtry <- 1:15
+        df <- expand.grid(mtry = mtry)
+        
+        # Fit random forest model
+        rfFit <- train(W ~ input$pred, data = trainData, method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        
+        # Compare to test data
+        predRF <- predict(rfFit, newdata = testData)
+        postResample(testData$W, predRF)
+    })
+    
+    # Output random forest model
+    
+    
     # Create data table
     output$mytable = renderDataTable({
         cbb

@@ -1,4 +1,4 @@
-# Project 3 - 2020 DI NCAA Basketball Stats App
+# Project 3 - DI NCAA Basketball Stats App
 
 ## App Describtion
 In this app, we took data from 2013-2021 seasons of DI NCAA Basketball found [here](https://www.kaggle.com/andrewsundberg/college-basketball-dataset). This data shows all the different teams in NCAA Division I and their ranking, conference, wins, and their team statistics by year. This app summerizes and plots this data in order to find correlation between a team's stats and the amount of wins they have. This app also models the data using a multiple linear regression model, a regression tree, and a random forest model.
@@ -31,5 +31,5 @@ install.packages(shinydashboard)
 ## Run the App
  Use this code to run the app in RStudio.
  ```{r}
- shiny::runGitHub('Project3','kafrazi2', ref="main")
+ shiny::runGitHub('Project3','kafrazi2', ref="main", subdir = "2020-DI-Basketball-Stats")
  ```

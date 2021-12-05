@@ -163,7 +163,9 @@ ui <- dashboardPage(
                                h4("Random Forest Cross Validation"),
                                numericInput("cv2", "Select the number of cross validation folds:", value = 5, min = 1, max =10, step = 1),
                                numericInput("repeat2", "Select the number of repetitions:", value = 3, min = 1, max =10, step = 1),
-                               actionButton("fit", "Fit Model")),
+                               actionButton("fit", "Fit Model"),
+                               conditionalPanel(condition = "input.fit == 1",
+                                                h6("Please be patient while the models load", style = "color:red"))),
                         column(6,
                                h4("Multiple Linear Regression Summary Stats (Training Data):"),
                                verbatimTextOutput("MLRTrain"),
@@ -176,7 +178,7 @@ ui <- dashboardPage(
                                h4("Random Forest Tree Summary Stats (Training Data):"),
                                verbatimTextOutput("RandForTrain"),
                                h4("Random Forest Tree Summary Stats (Test Data):"),
-                               verbatimTextOutput("RFTest")) 
+                               verbatimTextOutput("RandForTest")) 
                         )
                     
             ),
@@ -329,7 +331,10 @@ server <- shinyServer(function(input, output, session) {
     
     # Fit MLR model for train data
     MLRTrain <- eventReactive(input$fit, {
-        mlrFit <- lm(W ~ input$pred, data = trainData())
+        y <- "W"
+        x <- input$pred
+        mlrFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        mlrFit <- lm(mlrFormula, data = trainData())
         mlrFit
         summary(mlrFit)
     })
@@ -341,8 +346,10 @@ server <- shinyServer(function(input, output, session) {
     
     # Fit MLR model for test data
     MLRTest <- eventReactive(input$fit, {
-        mlrFit <- lm(W ~ input$pred, data = testData())
-        mlrFit
+        y <- "W"
+        x <- input$pred
+        mlrFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        mlrFit <- lm(mlrFormula, data = testData())
         summary(mlrFit)
     })
     
@@ -359,7 +366,11 @@ server <- shinyServer(function(input, output, session) {
         cp <- 0:0.1
         df <- expand.grid(cp = cp)
         
-        regFit <- train(W ~ input$pred, data = trainData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        y <- "W"
+        x <- input$pred
+        regFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        
+        regFit <- train(regFormula, data = trainData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
         regFit    
     })
     
@@ -376,11 +387,12 @@ server <- shinyServer(function(input, output, session) {
         df <- expand.grid(cp = cp)
         
         # Fit regression tree
-        regFit <- train(W ~ input$pred, data = trainData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
-        
-        # Compare to test data
-        predReg -> predict(regFit, newdata = testData())
-        postResample(testData$W, predReg)
+        y <- "W"
+        x <- input$pred
+        regFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        regFit <- train(regFormula, data = testData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        regFit
+
     })
     
     # Output regression tree
@@ -392,10 +404,14 @@ server <- shinyServer(function(input, output, session) {
     RFTrain <- eventReactive(input$fit, {
         
         # Create tuning parameters
-        mtry <- 1:15
+        mtry <- 1:2
         df <- expand.grid(mtry = mtry)
         
-        rfFit <- train(W ~ input$pred, data = trainData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        # fit random forest
+        y <- "W"
+        x <- input$pred
+        rfFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        rfFit <- train(rfFormula, data = trainData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
         rfFit
     })
     
@@ -408,15 +424,15 @@ server <- shinyServer(function(input, output, session) {
     output$RFTest <- eventReactive(input$fit, {
         
         # Create tuning parameters
-        mtry <- 1:15
+        mtry <- 1:2
         df <- expand.grid(mtry = mtry)
         
         # Fit random forest model
-        rfFit <- train(W ~ input$pred, data = trainData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
-        
-        # Compare to test data
-        predRF <- predict(rfFit, newdata = testData())
-        postResample(testData$W, predRF)
+        y <- "W"
+        x <- input$pred
+        rfFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
+        rfFit <- train(rfFormula, data = testData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        rfFit
     })
     
     

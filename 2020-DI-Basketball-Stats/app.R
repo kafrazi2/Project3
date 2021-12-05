@@ -6,6 +6,7 @@ library(caret)
 library(readr)
 library(ggplot2)
 library(DT)
+library(randomForest)
 
 # Read in data set
 cbb <- read_csv(file = "cbb.csv") 
@@ -159,7 +160,7 @@ ui <- dashboardPage(
                                numericInput("cv1", "Select the number of cross validation folds:", value = 5, min = 1, max =10, step = 1),
                                numericInput("repeat1", "Select the number of repetitions:", value = 3, min = 1, max =10, step = 1),
                                br(),
-                               h4("Random Forset Cross Validation"),
+                               h4("Random Forest Cross Validation"),
                                numericInput("cv2", "Select the number of cross validation folds:", value = 5, min = 1, max =10, step = 1),
                                numericInput("repeat2", "Select the number of repetitions:", value = 3, min = 1, max =10, step = 1),
                                actionButton("fit", "Fit Model")),
@@ -173,7 +174,7 @@ ui <- dashboardPage(
                                h4("Regression Tree Summary Stats (Test Data):"),
                                verbatimTextOutput("RegTreeTest"),
                                h4("Random Forest Tree Summary Stats (Training Data):"),
-                               verbatimTextOutput("RFTrain"),
+                               verbatimTextOutput("RandForTrain"),
                                h4("Random Forest Tree Summary Stats (Test Data):"),
                                verbatimTextOutput("RFTest")) 
                         )
@@ -182,7 +183,26 @@ ui <- dashboardPage(
             # Prediction tab content
             tabItem(tabName = "predict",
                     fluidRow(
-                               h1("Prediction")
+                            h1("Prediction"),
+                            column(6,
+                                   numericInput("pred1", "Select the value for offensive efficiency", value = 0, min = NA, max =NA, step = NA),
+                                   numericInput("pred2", "Select the value for defensive efficiency", value = 0, min = NA, max =NA, step = NA),
+                                   numericInput("pred3", "Select the value for turnover rate", value = 0, min = NA, max =NA, step = NA),
+                                   numericInput("pred4", "Select the value for offensive rebound rate", value = 0, min = NA, max =NA, step = NA),
+                                   actionButton("prediction", "Predict")),
+                            column(6,
+                                   h4("Model"),
+                                   h5("For this prediction model we will use a multiple linear regression model to determine number of wins."),
+                                   br(),
+                                   h5("This model will use the following predictors:"),
+                                   h5("-Offensive efficiency, Defensive efficiency, Turnover rate, and Offensive rebound rate"),
+                                   br(),
+                                   h5("This calculation uses the following coefficients to predict"),
+                                   verbatimTextOutput("coefficients"),
+                                   br(),
+                                   br(),
+                                   h5("Prediction:"),
+                                   uiOutput("finalPred"))
                     )
             ),
             # Data tab content
@@ -214,8 +234,7 @@ ui <- dashboardPage(
                             h4("-ADJ_T (wins above bubble)"),
                             h4("-POSTSEASON (round where the team was eliminated or their season ended)"),
                             h4("-SEED (seed in the NCAA March Madness tournament)"),
-                            h4("-YEAR (season)"),
-                            h4("-IN_TOUR (value = 1 if the team made the tournament and value = 0 if they did not)")
+                            h4("-YEAR (season)")
                         ),
                         # Output data table
                         dataTableOutput("mytable"),
@@ -295,22 +314,22 @@ server <- shinyServer(function(input, output, session) {
     
     # Create train and test data
     trainData <- reactive({
-        cbbNA <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
-        cbbNew <- as.data.frame(cbbNA)
-        trainIndex <- createDataPartition(cbbNew$PPG, p = input$ni, list = FALSE)
-        trainData <- cbbNew[trainIndex,]
+        cbbNew <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
+        trainIndex <- createDataPartition(cbbNew$W, p = input$ni, list = FALSE)
+        train <- cbbNew[trainIndex,]
+        trainData <- as.data.frame(train)
     })
     
     testData <- reactive({
-        cbbNA <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
-        cbbNew <- as.data.frame(cbbNA)
-        trainIndex <- createDataPartition(cbbNew$PPG, p = input$ni, list = FALSE)
-        testData <- cbbNew[-trainIndex,]
+        cbbNew <- cbb %>% mutate_all(~replace(., is.na(.), 0)) 
+        trainIndex <- createDataPartition(cbbNew$W, p = input$ni, list = FALSE)
+        test <- cbbNew[-trainIndex,]
+        testData <- as.data.frame(test)
     })
     
     # Fit MLR model for train data
     MLRTrain <- eventReactive(input$fit, {
-        mlrFit <- lm(W ~ input$pred, data = trainData)
+        mlrFit <- lm(W ~ input$pred, data = trainData())
         mlrFit
         summary(mlrFit)
     })
@@ -322,7 +341,7 @@ server <- shinyServer(function(input, output, session) {
     
     # Fit MLR model for test data
     MLRTest <- eventReactive(input$fit, {
-        mlrFit <- lm(W ~ input$pred, data = trainData)
+        mlrFit <- lm(W ~ input$pred, data = testData())
         mlrFit
         summary(mlrFit)
     })
@@ -340,7 +359,7 @@ server <- shinyServer(function(input, output, session) {
         cp <- 0:0.1
         df <- expand.grid(cp = cp)
         
-        regFit <- train(W ~ input$pred, data = trainData, method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        regFit <- train(W ~ input$pred, data = trainData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
         regFit    
     })
     
@@ -357,10 +376,10 @@ server <- shinyServer(function(input, output, session) {
         df <- expand.grid(cp = cp)
         
         # Fit regression tree
-        regFit <- train(W ~ input$pred, data = trainData, method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
+        regFit <- train(W ~ input$pred, data = trainData(), method = "rpart", trControl = trainControl(method = "repeatedcv", number = input$cv1, repeats = input$repeat1), tuneGrid = df)
         
         # Compare to test data
-        predReg -> predict(regFit, newdata = testData)
+        predReg -> predict(regFit, newdata = testData())
         postResample(testData$W, predReg)
     })
     
@@ -376,16 +395,16 @@ server <- shinyServer(function(input, output, session) {
         mtry <- 1:15
         df <- expand.grid(mtry = mtry)
         
-        rfFit <- train(W ~ input$pred, data = trainData, method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        rfFit <- train(W ~ input$pred, data = trainData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
         rfFit
     })
     
     # Output random forest model
-    output$RFTrain <- renderPrint({
+    output$RandForTrain <- renderPrint({
         RFTrain()
     })
     
-    # Create random forest tree model for test data
+    # Create random forest model for test data
     output$RFTest <- eventReactive(input$fit, {
         
         # Create tuning parameters
@@ -393,15 +412,35 @@ server <- shinyServer(function(input, output, session) {
         df <- expand.grid(mtry = mtry)
         
         # Fit random forest model
-        rfFit <- train(W ~ input$pred, data = trainData, method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
+        rfFit <- train(W ~ input$pred, data = trainData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
         
         # Compare to test data
-        predRF <- predict(rfFit, newdata = testData)
+        predRF <- predict(rfFit, newdata = testData())
         postResample(testData$W, predRF)
     })
     
-    # Output random forest model
     
+    # Prediction model
+    predModel <- eventReactive(input$prediction, {
+        mlrFit <- lm(W ~ ADJOE + ADJDE + TOR + ORB, data = testData())
+        mlrFit
+        
+        predict <- (mlrFit$coefficients[2]*input$pred1 + mlrFit$coefficients[3]*input$pred2 + mlrFit$coefficients[4]*input$pred3 + mlrFit$coefficients[5]*input$pred4)
+        predict
+    })
+    
+    # Prediction output
+    output$finalPred <- renderUI({
+        text1 <- "The estimated number of wins based on the predictor variables is "
+        predict1 <- round(predModel(), digits = 0)
+        paste(text1, predict1)
+    })
+    
+    # Output coefficients
+    output$coefficients <- renderPrint({
+        mlrFit <- lm(W ~ ADJOE + ADJDE + TOR + ORB, data = cbb)
+        mlrFit$coefficients
+    })
     
     # Create data table
     output$mytable = renderDataTable({

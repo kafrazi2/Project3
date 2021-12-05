@@ -420,19 +420,24 @@ server <- shinyServer(function(input, output, session) {
         RFTrain()
     })
     
-    # Create random forest model for test data
-    output$RFTest <- eventReactive(input$fit, {
+    # Create random forest tree model for test data
+    RFTest <- eventReactive(input$fit, {
         
         # Create tuning parameters
         mtry <- 1:2
         df <- expand.grid(mtry = mtry)
         
-        # Fit random forest model
+        # fit random forest
         y <- "W"
         x <- input$pred
         rfFormula <- as.formula(paste(y, paste(x, collapse = " + "), sep = " ~ "))
         rfFit <- train(rfFormula, data = testData(), method = "rf", trControl = trainControl(method = "repeatedcv", number = input$cv2, repeats = input$repeat2), tuneGrid = df)
         rfFit
+    })
+    
+    # Output random forest model
+    output$RandForTest <- renderPrint({
+        RFTest()
     })
     
     
